@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from typing import Callable
 
@@ -358,7 +359,7 @@ class NavigationMapUIBuilder:
             with ui.VStack(spacing=2, height=0):
                 self._models["z_height"] = float_builder(
                     "Camera Height",
-                    default_val=50.0,
+                    default_val=2000.0,
                     tooltip=(
                         "Height of the overhead camera in meters. Set higher than "
                         "the tallest object in your scene."
@@ -584,17 +585,57 @@ class NavigationMapUIBuilder:
     def _on_center_selection(self) -> None:
         """Center the origin on the selected prims and adjust bounds to match."""
         origin = self._calculate_bounds(origin_calc=True, stationary_bounds=True)
+        if not isinstance(origin[0], float) or not isinstance(origin[1], float):
+            return
         self._models["origin"][0].set_value(origin[0])
         self._models["origin"][1].set_value(origin[1])
 
-        result = self._calculate_bounds(origin_calc=False, stationary_bounds=True)
-        self._lower_bound, self._upper_bound = result[0], result[1]
+        current_origin_xy = (
+            self._models["origin"][0].get_value_as_float(),
+            self._models["origin"][1].get_value_as_float(),
+        )
+        self._lower_bound = (
+            self._lower_bound[0] + self._prev_origin[0] - current_origin_xy[0],
+            self._lower_bound[1] + self._prev_origin[1] - current_origin_xy[1],
+        )
+        self._upper_bound = (
+            self._upper_bound[0] + self._prev_origin[0] - current_origin_xy[0],
+            self._upper_bound[1] + self._prev_origin[1] - current_origin_xy[1],
+        )
         self._set_bound_values_in_ui()
 
     def _on_bound_selection(self) -> None:
         """Set bounds from the bounding box of selected prims."""
-        result = self._calculate_bounds(origin_calc=False, stationary_bounds=False)
-        self._lower_bound, self._upper_bound = result[0], result[1]
+        world_bounds = self._calculate_selection_world_bounds()
+        lower_z: float = 0.0
+        upper_z: float = 0.0
+
+        if world_bounds is None:
+            self._lower_bound = (0.0, 0.0)
+            self._upper_bound = (0.0, 0.0)
+        else:
+            origin_x = self._models["origin"][0].get_value_as_float()
+            origin_y = self._models["origin"][1].get_value_as_float()
+            origin_z = self._models["origin"][2].get_value_as_float()
+
+            min_world = world_bounds[0]
+            max_world = world_bounds[1]
+
+            self._lower_bound = (
+                float(math.floor(min_world[0] - origin_x)),
+                float(math.floor(min_world[1] - origin_y)),
+            )
+            self._upper_bound = (
+                float(math.ceil(max_world[0] - origin_x)),
+                float(math.ceil(max_world[1] - origin_y)),
+            )
+
+            lower_z = float(math.floor(min_world[2] - origin_z))
+            upper_z = float(math.ceil(max_world[2] - origin_z))
+
+        self._models["lower_bound"][2].set_value(lower_z)
+        self._models["upper_bound"][2].set_value(upper_z)
+
         self._set_bound_values_in_ui()
 
     def _set_bound_values_in_ui(self) -> None:
@@ -643,31 +684,14 @@ class NavigationMapUIBuilder:
             )
             return lower, upper
 
-        selected_paths = (
-            omni.usd.get_context().get_selection().get_selected_prim_paths()
-        )
-        stage = omni.usd.get_context().get_stage()
-        bbox_cache = UsdGeom.BBoxCache(
-            Usd.TimeCode.Default(), includedPurposes=[UsdGeom.Tokens.default_]
-        )
-        total_bbox = Gf.BBox3d()
-
-        if len(selected_paths) > 0:
-            for prim_path in selected_paths:
-                prim = stage.GetPrimAtPath(prim_path)
-                bounds = bbox_cache.ComputeWorldBound(prim)
-                total_bbox = Gf.BBox3d.Combine(
-                    total_bbox, Gf.BBox3d(bounds.ComputeAlignedRange())
-                )
-            box_range = total_bbox.GetBox()
+        world_bounds = self._calculate_selection_world_bounds()
+        if world_bounds is not None:
+            min_pt, max_pt = world_bounds
 
             if origin_calc:
-                mid = box_range.GetMidpoint()
                 self._prev_origin = origin_xy
-                return (mid[0], mid[1])
+                return ((min_pt[0] + max_pt[0]) * 0.5, (min_pt[1] + max_pt[1]) * 0.5)
 
-            min_pt = box_range.GetMin()
-            max_pt = box_range.GetMax()
             lower = (min_pt[0] - origin_xy[0], min_pt[1] - origin_xy[1])
             upper = (max_pt[0] - origin_xy[0], max_pt[1] - origin_xy[1])
             return lower, upper
@@ -675,3 +699,43 @@ class NavigationMapUIBuilder:
         if origin_calc:
             return (0.0, 0.0)
         return (0.0, 0.0), (0.0, 0.0)
+
+    def _calculate_selection_world_bounds(
+        self,
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
+        selected_paths = (
+            omni.usd.get_context().get_selection().get_selected_prim_paths()
+        )
+        if not selected_paths:
+            return None
+
+        stage = omni.usd.get_context().get_stage()
+        if stage is None:
+            return None
+
+        bbox_cache = UsdGeom.BBoxCache(
+            Usd.TimeCode.Default(), includedPurposes=[UsdGeom.Tokens.default_]
+        )
+        total_bbox = Gf.BBox3d()
+        has_valid_prim = False
+
+        for prim_path in selected_paths:
+            prim = stage.GetPrimAtPath(prim_path)
+            if not prim.IsValid():
+                continue
+            bounds = bbox_cache.ComputeWorldBound(prim)
+            total_bbox = Gf.BBox3d.Combine(
+                total_bbox, Gf.BBox3d(bounds.ComputeAlignedRange())
+            )
+            has_valid_prim = True
+
+        if not has_valid_prim:
+            return None
+
+        box_range = total_bbox.GetBox()
+        min_pt = box_range.GetMin()
+        max_pt = box_range.GetMax()
+        return (
+            (float(min_pt[0]), float(min_pt[1]), float(min_pt[2])),
+            (float(max_pt[0]), float(max_pt[1]), float(max_pt[2])),
+        )
