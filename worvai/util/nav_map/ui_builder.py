@@ -633,10 +633,10 @@ class NavigationMapUIBuilder:
             lower_z = float(math.floor(min_world[2] - origin_z))
             upper_z = float(math.ceil(max_world[2] - origin_z))
 
+        self._set_bound_values_in_ui()
+
         self._models["lower_bound"][2].set_value(lower_z)
         self._models["upper_bound"][2].set_value(upper_z)
-
-        self._set_bound_values_in_ui()
 
     def _set_bound_values_in_ui(self) -> None:
         """Push internal bound values into the UI widgets with change-guard."""
