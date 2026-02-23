@@ -230,11 +230,13 @@ class OrthoMapCapture:
                     carb.log_info(f"  Captured tile {tile_count}/{grid.total_tiles}")
 
         filepath = os.path.join(config.output_directory, "orthographic.png")
+        jpeg_path = os.path.join(config.output_directory, "orthographic.jpeg")
         ui_png_path = os.path.join(config.output_directory, "orthographic_ui.png")
-        ui_pnh_path = os.path.join(config.output_directory, "orthographic_ui.pnh")
+        ui_jpeg_path = os.path.join(config.output_directory, "orthographic_ui.jpeg")
 
         img = Image.fromarray(final_image)
         img.save(filepath)
+        img.save(jpeg_path, format="JPEG", quality=95)
 
         ui_width = max(1, img.width // UI_IMAGE_SCALE_DIVISOR)
         ui_height = max(1, img.height // UI_IMAGE_SCALE_DIVISOR)
@@ -245,18 +247,32 @@ class OrthoMapCapture:
         else:
             resized_ui_img = img.resize((ui_width, ui_height), Image.BILINEAR)
         resized_ui_img.save(ui_png_path)
-        resized_ui_img.save(ui_pnh_path, format="PNG")
+        resized_ui_img.save(ui_jpeg_path, format="JPEG", quality=95)
 
         carb.log_info(
             f"Orthographic map saved: {filepath} "
             f"({grid.total_width_pixels}x{grid.total_height_pixels}) | "
-            f"UI: {ui_png_path}"
+            f"JPEG: {jpeg_path} | UI: {ui_png_path} | UI JPEG: {ui_jpeg_path}"
         )
         return filepath
 
     def destroy(self) -> None:
         """Release all render resources and clear state."""
+        camera_prim_path: str | None = None
+        if self._camera_prim is not None:
+            camera_prim_path = str(self._camera_prim.GetPath())
+        elif self._config is not None:
+            camera_prim_path = self._config.camera_prim_path
+
         self._teardown_render_resources()
+
+        if camera_prim_path:
+            stage = omni.usd.get_context().get_stage()
+            if stage is not None:
+                camera_prim = stage.GetPrimAtPath(camera_prim_path)
+                if camera_prim.IsValid():
+                    omni.kit.commands.execute("DeletePrims", paths=[camera_prim_path])
+
         self._camera_prim = None
         self._config = None
 

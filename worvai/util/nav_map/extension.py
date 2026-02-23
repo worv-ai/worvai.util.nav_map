@@ -274,6 +274,8 @@ class NavigationMapExtension(omni.ext.IExt):
             carb.log_error(f"Image capture failed: {exc}")
             self._ui_builder.set_status(f"Error: {exc}", STATUS_ERROR)
         finally:
+            if self._capture_engine is not None:
+                self._capture_engine.destroy()
             self._restore_guide_visualization()
             self._ui_builder.set_progress(1.0)
             self._ui_builder.set_generate_enabled(True)
@@ -318,6 +320,8 @@ class NavigationMapExtension(omni.ext.IExt):
                     "Orthographic map capture failed — check console.", STATUS_ERROR
                 )
                 return
+            if self._capture_engine is not None:
+                self._capture_engine.destroy()
             config_omap = self._build_omap_config()
             self._ui_builder.set_status("Generating occupancy map...", STATUS_INFO)
             self._ui_builder.set_progress(0.6)
@@ -339,6 +343,8 @@ class NavigationMapExtension(omni.ext.IExt):
             carb.log_error(f"Combined generation failed: {exc}")
             self._ui_builder.set_status(f"Error: {exc}", STATUS_ERROR)
         finally:
+            if self._capture_engine is not None:
+                self._capture_engine.destroy()
             self._restore_guide_visualization()
             self._ui_builder.set_progress(1.0)
             self._ui_builder.set_generate_enabled(True)

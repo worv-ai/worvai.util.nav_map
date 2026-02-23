@@ -329,12 +329,17 @@ class OmapCapture:
         os.makedirs(config.output_directory, exist_ok=True)
         png_filename = "occupancy.png"
         png_filepath = os.path.join(config.output_directory, png_filename)
+        jpeg_filename = "occupancy.jpeg"
+        jpeg_filepath = os.path.join(config.output_directory, jpeg_filename)
         ui_png_filename = "occupancy_ui.png"
         ui_png_filepath = os.path.join(config.output_directory, ui_png_filename)
+        ui_jpeg_filename = "occupancy_ui.jpeg"
+        ui_jpeg_filepath = os.path.join(config.output_directory, ui_jpeg_filename)
 
         img = Image.fromarray(image_data, mode="RGBA")
         img = img.rotate(-180, expand=True)
         img.save(png_filepath)
+        img.convert("RGB").save(jpeg_filepath, format="JPEG", quality=95)
 
         ui_width = max(1, img.width // UI_IMAGE_SCALE_DIVISOR)
         ui_height = max(1, img.height // UI_IMAGE_SCALE_DIVISOR)
@@ -343,6 +348,7 @@ class OmapCapture:
         else:
             ui_img = img.resize((ui_width, ui_height), resample=0)
         ui_img.save(ui_png_filepath)
+        ui_img.convert("RGB").save(ui_jpeg_filepath, format="JPEG", quality=95)
 
         # ROS YAML — origin from generator actual bounds, matching native
         # omap extension default (180° rotation).  At 180° the ROS origin
@@ -384,7 +390,8 @@ class OmapCapture:
 
         carb.log_info(
             f"Occupancy map saved: {png_filepath} ({dims[0]}x{dims[1]} cells) | "
-            f"YAML: {yaml_filepath} | UI: {ui_png_filepath} | UI YAML: {yaml_ui_filepath}"
+            f"JPEG: {jpeg_filepath} | YAML: {yaml_filepath} | UI: {ui_png_filepath} | "
+            f"UI JPEG: {ui_jpeg_filepath} | UI YAML: {yaml_ui_filepath}"
         )
         return png_filepath
 
