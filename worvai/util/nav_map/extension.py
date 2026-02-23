@@ -87,7 +87,9 @@ class NavigationMapExtension(omni.ext.IExt):
             )
         ]
         self._menu_items = [MenuItemDescription("Utilities", sub_menu=menu_entry)]
-        add_menu_items(self._menu_items, "Tools")
+        add_menu_items(self._menu_items, "WoRV")
+
+        self._window.visible = True
 
         carb.log_info(f"{EXTENSION_TITLE} ({ext_id}) loaded.")
 
@@ -114,7 +116,7 @@ class NavigationMapExtension(omni.ext.IExt):
             self._om = None
 
         if self._menu_items:
-            remove_menu_items(self._menu_items, "Tools")
+            remove_menu_items(self._menu_items, "WoRV")
             self._menu_items = []
 
         self._window = None
