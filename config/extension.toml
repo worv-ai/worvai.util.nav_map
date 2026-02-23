@@ -1,0 +1,26 @@
+[package]
+title = "Navigation Map Generator"
+description = "Generates navigation maps from Isaac Sim scenes using orthographic capture and occupancy grid extraction."
+category = "utility"
+version = "0.3.0"
+authors = ["kickthemoon0817"]
+readme = "docs/README.md"
+repository = ""
+keywords = ["isaac", "navigation", "map", "orthographic", "occupancy", "capture"]
+writeTarget.kit = true
+
+[dependencies]
+"isaacsim.asset.gen.omap" = {}
+"isaacsim.core.utils" = {}
+"isaacsim.gui.components" = {}
+"omni.kit.menu.utils" = {}
+"omni.kit.usd.layers" = {}
+"omni.physx" = {}
+"omni.replicator.core" = {}
+"omni.timeline" = {}
+"omni.ui" = {}
+"omni.usd" = {}
+
+[[python.module]]
+name = "worvai.util.nav_map"
+
