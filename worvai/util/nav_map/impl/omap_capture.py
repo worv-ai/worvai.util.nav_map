@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import os
-from datetime import datetime
 from typing import Optional
 
 import carb
@@ -26,6 +25,7 @@ from .omap_config import OmapConfig
 OMAP_OCCUPIED_VALUE: int = 4
 OMAP_FREE_VALUE: int = 5
 OMAP_UNKNOWN_VALUE: int = 6
+UI_IMAGE_SCALE_DIVISOR: int = 10
 
 
 class OmapCapture:
@@ -72,11 +72,16 @@ class OmapCapture:
 
         if not config.use_physx_geometry:
             filepath = await self._generate_with_mesh_collision(
-                stage, timeline, app, config,
+                stage,
+                timeline,
+                app,
+                config,
             )
         else:
             filepath = await self._generate_with_physx_collision(
-                timeline, app, config,
+                timeline,
+                app,
+                config,
             )
 
         return filepath
@@ -128,10 +133,15 @@ class OmapCapture:
             physx_interface = omni.physx.get_physx_interface()
             self._generator = _omap.Generator(physx_interface, context.get_stage_id())
             self._generator.update_settings(
-                config.cell_size, OMAP_OCCUPIED_VALUE, OMAP_FREE_VALUE, OMAP_UNKNOWN_VALUE,
+                config.cell_size,
+                OMAP_OCCUPIED_VALUE,
+                OMAP_FREE_VALUE,
+                OMAP_UNKNOWN_VALUE,
             )
             self._generator.set_transform(
-                config.origin, config.lower_bound, config.upper_bound,
+                config.origin,
+                config.lower_bound,
+                config.upper_bound,
             )
 
             await app.next_update_async()
@@ -139,7 +149,10 @@ class OmapCapture:
             await app.next_update_async()
 
             slope_free_mask: Optional[np.ndarray] = None
-            if config.max_traversable_slope_degrees > 0.0 and self._generator is not None:
+            if (
+                config.max_traversable_slope_degrees > 0.0
+                and self._generator is not None
+            ):
                 slope_free_mask = self._compute_slope_free_mask(config)
         finally:
             timeline.stop()
@@ -181,7 +194,9 @@ class OmapCapture:
 
             with Sdf.ChangeBlock():
                 for prim in stage.Traverse():
-                    if prim.HasAPI(UsdPhysics.CollisionAPI) and prim.HasAPI(UsdPhysics.RigidBodyAPI):
+                    if prim.HasAPI(UsdPhysics.CollisionAPI) and prim.HasAPI(
+                        UsdPhysics.RigidBodyAPI
+                    ):
                         physx_utils.removePhysics(prim)
 
             await app.next_update_async()
@@ -201,7 +216,11 @@ class OmapCapture:
 
                     if prim.HasAPI(UsdPhysics.CollisionAPI):
                         if prim.HasAPI(UsdPhysics.MeshCollisionAPI):
-                            approx = UsdPhysics.MeshCollisionAPI(prim).GetApproximationAttr().Get()
+                            approx = (
+                                UsdPhysics.MeshCollisionAPI(prim)
+                                .GetApproximationAttr()
+                                .Get()
+                            )
                             if approx == "none":
                                 continue
                         if prim.IsA(UsdGeom.Gprim):
@@ -229,10 +248,15 @@ class OmapCapture:
             physx_interface = omni.physx.get_physx_interface()
             self._generator = _omap.Generator(physx_interface, context.get_stage_id())
             self._generator.update_settings(
-                config.cell_size, OMAP_OCCUPIED_VALUE, OMAP_FREE_VALUE, OMAP_UNKNOWN_VALUE,
+                config.cell_size,
+                OMAP_OCCUPIED_VALUE,
+                OMAP_FREE_VALUE,
+                OMAP_UNKNOWN_VALUE,
             )
             self._generator.set_transform(
-                config.origin, config.lower_bound, config.upper_bound,
+                config.origin,
+                config.lower_bound,
+                config.upper_bound,
             )
 
             await app.next_update_async()
@@ -240,7 +264,10 @@ class OmapCapture:
             await app.next_update_async()
 
             slope_free_mask: Optional[np.ndarray] = None
-            if config.max_traversable_slope_degrees > 0.0 and self._generator is not None:
+            if (
+                config.max_traversable_slope_degrees > 0.0
+                and self._generator is not None
+            ):
                 slope_free_mask = self._compute_slope_free_mask(config)
         finally:
             timeline.stop()
@@ -278,7 +305,9 @@ class OmapCapture:
 
         dims = self._generator.get_dimensions()
         if dims[0] == 0 or dims[1] == 0:
-            carb.log_warn("Occupancy map buffer is empty — no collision geometry in bounds?")
+            carb.log_warn(
+                "Occupancy map buffer is empty — no collision geometry in bounds?"
+            )
             return None
 
         buffer = self._generator.get_buffer()
@@ -298,13 +327,22 @@ class OmapCapture:
         image_flat[free_mask] = freespace_color
 
         os.makedirs(config.output_directory, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        png_filename = f"omap_{timestamp}.png"
+        png_filename = "occupancy.png"
         png_filepath = os.path.join(config.output_directory, png_filename)
+        ui_png_filename = "occupancy_ui.png"
+        ui_png_filepath = os.path.join(config.output_directory, ui_png_filename)
 
         img = Image.fromarray(image_data, mode="RGBA")
         img = img.rotate(-180, expand=True)
         img.save(png_filepath)
+
+        ui_width = max(1, img.width // UI_IMAGE_SCALE_DIVISOR)
+        ui_height = max(1, img.height // UI_IMAGE_SCALE_DIVISOR)
+        if hasattr(Image, "Resampling"):
+            ui_img = img.resize((ui_width, ui_height), Image.Resampling.NEAREST)
+        else:
+            ui_img = img.resize((ui_width, ui_height), resample=0)
+        ui_img.save(ui_png_filepath)
 
         # ROS YAML — origin from generator actual bounds, matching native
         # omap extension default (180° rotation).  At 180° the ROS origin
@@ -316,11 +354,12 @@ class OmapCapture:
         origin_x = min_b[0] + half_w
         origin_y = min_b[1] + half_w
 
-        yaml_filename = f"omap_{timestamp}.yaml"
-        yaml_filepath = os.path.join(config.output_directory, yaml_filename)
+        base_resolution = float(config.cell_size / scale_to_meters)
+
+        yaml_filepath = os.path.join(config.output_directory, "map.yml")
         yaml_content = (
             f"image: {png_filename}\n"
-            f"resolution: {float(config.cell_size / scale_to_meters)}\n"
+            f"resolution: {base_resolution}\n"
             f"origin: [{float(origin_x / scale_to_meters)}, "
             f"{float(origin_y / scale_to_meters)}, 0.0000]\n"
             f"negate: 0\n"
@@ -330,9 +369,22 @@ class OmapCapture:
         with open(yaml_filepath, "w") as f:
             f.write(yaml_content)
 
+        yaml_ui_filepath = os.path.join(config.output_directory, "map_ui.yml")
+        yaml_ui_content = (
+            f"image: {ui_png_filename}\n"
+            f"resolution: {base_resolution * UI_IMAGE_SCALE_DIVISOR}\n"
+            f"origin: [{float(origin_x / scale_to_meters)}, "
+            f"{float(origin_y / scale_to_meters)}, 0.0000]\n"
+            f"negate: 0\n"
+            f"occupied_thresh: 0.65\n"
+            f"free_thresh: 0.196\n"
+        )
+        with open(yaml_ui_filepath, "w") as f:
+            f.write(yaml_ui_content)
+
         carb.log_info(
             f"Occupancy map saved: {png_filepath} ({dims[0]}x{dims[1]} cells) | "
-            f"YAML: {yaml_filepath}"
+            f"YAML: {yaml_filepath} | UI: {ui_png_filepath} | UI YAML: {yaml_ui_filepath}"
         )
         return png_filepath
 
@@ -399,7 +451,9 @@ class OmapCapture:
             down_origin = carb.Float3(cell_x, cell_y, down_ray_start_z)
             down_dir = carb.Float3(0.0, 0.0, -1.0)
             down_hit = scene_query.raycast_closest(
-                down_origin, down_dir, down_ray_distance,
+                down_origin,
+                down_dir,
+                down_ray_distance,
             )
             if not down_hit["hit"]:
                 continue
@@ -415,7 +469,9 @@ class OmapCapture:
             up_origin = carb.Float3(cell_x, cell_y, up_ray_start_z)
             up_dir = carb.Float3(0.0, 0.0, 1.0)
             up_hit = scene_query.raycast_closest(
-                up_origin, up_dir, up_ray_distance,
+                up_origin,
+                up_dir,
+                up_ray_distance,
             )
             if not up_hit["hit"]:
                 continue

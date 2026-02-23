@@ -193,12 +193,13 @@ class NavigationMapExtension(omni.ext.IExt):
         boundary = BoundaryRegion(x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max)
         meters_per_pixel = self._ui_builder.get_meters_per_pixel()
         tile_grid = OrthoMapConfig.compute_tile_grid(boundary, meters_per_pixel)
+        output_directory = self._resolve_scene_output_directory()
         return OrthoMapConfig(
             boundary=boundary,
             camera_height_meters=self._ui_builder.get_camera_height(),
             meters_per_pixel=meters_per_pixel,
             camera_prim_path=self._ui_builder.get_camera_path(),
-            output_directory=self._ui_builder.get_output_directory(),
+            output_directory=output_directory,
             tile_grid=tile_grid,
         )
 
@@ -209,16 +210,44 @@ class NavigationMapExtension(omni.ext.IExt):
         Returns:
             Immutable config ready for OmapCapture.
         """
+        output_directory = self._resolve_scene_output_directory()
         return OmapConfig(
             origin=self._ui_builder.get_origin(),
             lower_bound=self._ui_builder.get_lower_bound(),
             upper_bound=self._ui_builder.get_upper_bound(),
             cell_size=self._ui_builder.get_cell_size(),
             use_physx_geometry=self._ui_builder.get_use_physx_geometry(),
-            output_directory=self._ui_builder.get_output_directory(),
+            output_directory=output_directory,
             exclude_prim_paths=self._ui_builder.get_exclude_prim_paths(),
             max_traversable_slope_degrees=self._ui_builder.get_max_traversable_slope_degrees(),
         )
+
+    def _resolve_scene_output_directory(self) -> str:
+        base_output_dir = os.path.expanduser(
+            self._ui_builder.get_output_directory().strip()
+        )
+        stage = omni.usd.get_context().get_stage()
+        scene_folder_name = self._get_scene_folder_name(stage)
+        return os.path.join(base_output_dir, scene_folder_name)
+
+    @staticmethod
+    def _get_scene_folder_name(stage: Any | None) -> str:
+        default_folder_name = "untitled_stage"
+        if stage is None:
+            return default_folder_name
+
+        root_layer = stage.GetRootLayer()
+        if root_layer is None:
+            return default_folder_name
+
+        layer_path: str = root_layer.realPath or root_layer.identifier
+        base_name = os.path.basename(layer_path.strip())
+        if not base_name:
+            return default_folder_name
+
+        scene_name, _ = os.path.splitext(base_name)
+        scene_name = scene_name.strip()
+        return scene_name or default_folder_name
 
     async def _generate_image_async(self) -> None:
         """Create camera, capture with progress, update UI on completion."""
@@ -355,15 +384,14 @@ class NavigationMapExtension(omni.ext.IExt):
 
     def _on_open_folder(self) -> None:
         """Open the output directory in the system file browser."""
-        output_dir = self._ui_builder.get_output_directory()
+        output_dir = self._resolve_scene_output_directory()
         if not output_dir:
             self._ui_builder.set_status("No output directory set.", STATUS_WARNING)
             return
-        path = os.path.expanduser(output_dir)
-        os.makedirs(path, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
         if sys.platform == "win32":
-            os.startfile(path)
+            os.startfile(output_dir)
         elif sys.platform == "darwin":
-            subprocess.run(["open", path], check=False)
+            subprocess.run(["open", output_dir], check=False)
         else:
-            subprocess.run(["xdg-open", path], check=False)
+            subprocess.run(["xdg-open", output_dir], check=False)

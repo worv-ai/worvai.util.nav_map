@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 from typing import Callable, Optional
 
 import carb
@@ -36,6 +35,7 @@ SETTLE_FRAMES_AFTER_TELEPORT: int = 4
 
 # Additional realtime subframes reduce transient artifacts after camera moves.
 CAPTURE_RT_SUBFRAMES: int = 2
+UI_IMAGE_SCALE_DIVISOR: int = 10
 
 
 class OrthoMapCapture:
@@ -229,15 +229,28 @@ class OrthoMapCapture:
                 if grid.uses_tiling:
                     carb.log_info(f"  Captured tile {tile_count}/{grid.total_tiles}")
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"orthographic_map_{timestamp}.png"
-        filepath = os.path.join(config.output_directory, filename)
+        filepath = os.path.join(config.output_directory, "orthographic.png")
+        ui_png_path = os.path.join(config.output_directory, "orthographic_ui.png")
+        ui_pnh_path = os.path.join(config.output_directory, "orthographic_ui.pnh")
 
         img = Image.fromarray(final_image)
         img.save(filepath)
+
+        ui_width = max(1, img.width // UI_IMAGE_SCALE_DIVISOR)
+        ui_height = max(1, img.height // UI_IMAGE_SCALE_DIVISOR)
+        if hasattr(Image, "Resampling"):
+            resized_ui_img = img.resize(
+                (ui_width, ui_height), Image.Resampling.BILINEAR
+            )
+        else:
+            resized_ui_img = img.resize((ui_width, ui_height), Image.BILINEAR)
+        resized_ui_img.save(ui_png_path)
+        resized_ui_img.save(ui_pnh_path, format="PNG")
+
         carb.log_info(
             f"Orthographic map saved: {filepath} "
-            f"({grid.total_width_pixels}x{grid.total_height_pixels})"
+            f"({grid.total_width_pixels}x{grid.total_height_pixels}) | "
+            f"UI: {ui_png_path}"
         )
         return filepath
 
