@@ -1,5 +1,20 @@
 # Version History
 
+## v0.3.1 — 2026-04-04
+
+Fixed bounding box computation producing max-float values when selected prims have no renderable geometry.
+
+### Bug Fixes
+
+- **Empty bbox guard** — `_calculate_selection_world_bounds()` now checks `aligned_range.IsEmpty()` before combining; non-mesh prims (Xform, Scope, etc.) are skipped instead of injecting `±FLT_MAX` sentinel values into the combined bounding box
+
+### Modified Files
+
+- `config/extension.toml` — Version bump to v0.3.1
+- `ui_builder.py` — Added `IsEmpty()` check on `ComputeAlignedRange()` result in `_calculate_selection_world_bounds()`
+
+---
+
 ## v0.3.0 — 2026-02-15
 
 Added slope-based post-processing to filter steep terrain from occupancy maps.

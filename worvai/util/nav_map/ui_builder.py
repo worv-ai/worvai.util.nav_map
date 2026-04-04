@@ -724,8 +724,11 @@ class NavigationMapUIBuilder:
             if not prim.IsValid():
                 continue
             bounds = bbox_cache.ComputeWorldBound(prim)
+            aligned_range = bounds.ComputeAlignedRange()
+            if aligned_range.IsEmpty():
+                continue
             total_bbox = Gf.BBox3d.Combine(
-                total_bbox, Gf.BBox3d(bounds.ComputeAlignedRange())
+                total_bbox, Gf.BBox3d(aligned_range)
             )
             has_valid_prim = True
 
