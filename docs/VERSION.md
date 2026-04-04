@@ -1,5 +1,25 @@
 # Version History
 
+## v0.4.0 — 2026-04-04
+
+Renamed project from `worvai.util.nav_map` to `worv.util.nav_map`. Fixed bounding box computation on non-mesh prims.
+
+### Breaking Changes
+
+- **Module rename** — `worvai.util.nav_map` → `worv.util.nav_map`; Python package directory `worvai/` → `worv/`; update all `.kit` files and imports accordingly
+
+### Bug Fixes
+
+- **Empty bbox guard** — Skip prims whose `ComputeAlignedRange()` is empty before combining into the total bounding box
+
+### Modified Files
+
+- `config/extension.toml` — Module name and version bump to v0.4.0
+- `docs/README.md` — All references updated from `worvai` to `worv`
+- `ui_builder.py` — Added `IsEmpty()` check in `_calculate_selection_world_bounds()`
+
+---
+
 ## v0.3.0 — 2026-02-15
 
 Added slope-based post-processing to filter steep terrain from occupancy maps.
