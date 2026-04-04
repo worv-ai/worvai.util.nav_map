@@ -1,6 +1,6 @@
-# khemoo.util.navigation_map
+# worv.util.nav_map
 
-Isaac Sim `orthographic` & `occupancy` map generator with GUI.
+Isaac Sim orthographic & occupancy map generator with GUI.
 
 See [`docs/README.md`](docs/README.md) for full documentation.
 
@@ -18,4 +18,4 @@ git tag -a vX.Y.Z -m "vX.Y.Z: short description"
 git push origin vX.Y.Z
 ```
 
-The version string must match across `extension.toml` and the git tag (e.g. `0.2.0` and `v0.2.0`).
+The version string must match across `extension.toml` and the git tag (e.g. `0.4.0` and `v0.4.0`).

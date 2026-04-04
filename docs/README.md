@@ -4,13 +4,13 @@
 
 ## Overview
 
-Navigation Map Generator creates high-resolution top-down orthographic images of Isaac Sim scenes. These images serve as navigation maps for autonomous robots, providing bird's-eye-view representations of the environment.
+Navigation Map Generator creates high-resolution top-down orthographic images and 2D occupancy grids from Isaac Sim scenes. These serve as navigation maps for autonomous robots, providing bird's-eye-view representations of the environment.
 
 The extension supports:
 
 - **Orthographic Capture** — Creates a USD orthographic camera and renders a top-down image of a defined scene region.
 - **Tiled Rendering** — Automatically splits large captures into tiles (max 2048px per tile) to avoid VRAM limitations, then stitches them into a single output image.
-- **Occupancy Map** *(planned)* — Future integration for binary occupancy grid extraction from scene geometry.
+- **Occupancy Map** — 2D occupancy grid via PhysX raycasting with PNG + ROS YAML output, including slope-based terrain filtering.
 
 ## Installation
 
@@ -28,16 +28,17 @@ The extension directory must be registered as an extension search path. If place
 ### GUI
 
 1. Open **Tools → Utilities → Navigation Map Generator**
-2. Configure the **Boundary Coordinates** (X Min, X Max, Y Min, Y Max) to define the capture region in world meters
-3. Set **Camera Settings**:
+2. Configure the **Area Definition** — Origin, lower/upper bounds, and cell size
+   - **Center to Selection** / **Bound Selection** — Set area from selected prims
+3. **Orthographic Settings**:
    - **Z Height** — Camera altitude above the scene (default: 50.0 m)
    - **Meters per Pixel** — Spatial resolution (default: 0.01 m/px)
    - **Camera Path** — USD prim path for the camera (default: `/World/OrthoCamera`)
-4. Set **Output Directory** for saved images (default: `~/navigation_maps`)
-5. Click **CREATE CAMERA** to place the orthographic camera
-6. Click **CAPTURE** to render and save the navigation map
-
-Output files are saved as `nav_map_YYYYMMDD_HHMMSS.png`.
+4. **Occupancy Map Settings**:
+   - **Max Traversable Slope** — Slope threshold in degrees for terrain filtering (0 = disabled)
+   - **Output Directory** for saved maps (default: `~/navigation_maps`)
+5. Click **CREATE CAMERA** / **CAPTURE** for orthographic maps
+6. Click **GENERATE** for occupancy maps
 
 ### Programmatic API
 
@@ -80,7 +81,9 @@ worv.util.nav_map/
     └── impl/
         ├── __init__.py
         ├── ortho_config.py      # Frozen dataclasses: BoundaryRegion, TileGrid, OrthoMapConfig
-        └── ortho_capture.py     # OrthoMapCapture — camera creation + tiled rendering
+        ├── ortho_capture.py     # OrthoMapCapture — camera creation + tiled rendering
+        ├── omap_config.py       # Frozen OmapConfig: origin, bounds, cell size, output
+        └── omap_capture.py      # OmapCapture — PhysX/mesh collision occupancy generation
 ```
 
 ### Module Responsibilities
@@ -91,35 +94,34 @@ worv.util.nav_map/
 | `ortho_config` | `TileGrid` | Computed tiling layout (tile count, dimensions, resolution) |
 | `ortho_config` | `OrthoMapConfig` | Complete immutable capture configuration |
 | `ortho_capture` | `OrthoMapCapture` | Camera lifecycle, tiled rendering, image stitching |
-| `ui_builder` | `NavigationMapUIBuilder` | Omni.UI panel with boundary/camera/output controls |
-| `extension` | `NavigationMapExtension` | Thin wiring between capture engine and UI |
+| `omap_config` | `OmapConfig` | Origin, bounds, cell size, slope threshold, output settings |
+| `omap_capture` | `OmapCapture` | PhysX/mesh collision occupancy grid generation |
+| `ui_builder` | `NavigationMapUIBuilder` | Omni.UI panel with area/camera/omap controls |
+| `extension` | `NavigationMapExtension` | Thin wiring between engines and UI |
 
 ### Design Principles
 
 - **Immutability** — All configuration objects are `@dataclass(frozen=True)`
-- **Separation of Concerns** — Capture engine is standalone and usable without UI
+- **Separation of Concerns** — Capture engines are standalone and usable without UI
 - **Type Safety** — Full type hints on all signatures, attributes, and return types
-- **No Micro-Methods** — Logic reads top-to-bottom; functions are cohesive, not fragmented
 
 ## Dependencies
 
 | Package | Purpose |
 |---|---|
+| `isaacsim.asset.gen.omap` | Occupancy map generation primitives |
+| `isaacsim.core.utils` | Core Isaac Sim utilities |
 | `isaacsim.gui.components` | ScrollingWindow, menu helpers, UI builders |
 | `omni.kit.menu.utils` | Tools menu integration |
+| `omni.kit.usd.layers` | Anonymous session layer for non-destructive edits |
+| `omni.physx` | PhysX raycasting for occupancy maps |
 | `omni.replicator.core` | Render products and RGB annotators |
+| `omni.timeline` | Simulation timeline control |
 | `omni.ui` | Widget framework |
 | `omni.usd` | USD stage access |
 | `PIL` (Pillow) | Image assembly and saving |
 | `numpy` | Pixel buffer manipulation |
 
-## Roadmap
-
-- [x] Orthographic top-down capture with tiled rendering
-- [ ] Occupancy grid extraction from scene collision geometry
-- [ ] Combined navigation map export (ortho + occupancy layers)
-
 ## License
 
 Internal use — see repository for details.
-
