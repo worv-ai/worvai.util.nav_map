@@ -1,6 +1,6 @@
 # Navigation Map Generator
 
-> `worvai.util.nav_map` — Isaac Sim extension for generating navigation maps using orthographic capture and occupancy grid extraction.
+> `worv.util.nav_map` — Isaac Sim extension for generating navigation maps using orthographic capture and occupancy grid extraction.
 
 ## Overview
 
@@ -14,11 +14,11 @@ The extension supports:
 
 ## Installation
 
-Enable `worvai.util.nav_map` in your Isaac Sim `.kit` file or the Extension Manager.
+Enable `worv.util.nav_map` in your Isaac Sim `.kit` file or the Extension Manager.
 
 ```toml
 [dependencies]
-"worvai.util.nav_map" = {}
+"worv.util.nav_map" = {}
 ```
 
 The extension directory must be registered as an extension search path. If placed under `extsUser/`, Isaac Sim discovers it automatically.
@@ -44,7 +44,7 @@ Output files are saved as `nav_map_YYYYMMDD_HHMMSS.png`.
 The capture engine is usable without the UI:
 
 ```python
-from worvai.util.nav_map import BoundaryRegion, OrthoMapConfig, OrthoMapCapture
+from worv.util.nav_map import BoundaryRegion, OrthoMapConfig, OrthoMapCapture
 
 boundary = BoundaryRegion(x_min=-20.0, x_max=20.0, y_min=-20.0, y_max=20.0)
 tile_grid = OrthoMapConfig.compute_tile_grid(boundary, meters_per_pixel=0.01)
@@ -67,13 +67,13 @@ capture.destroy()
 ## Architecture
 
 ```
-worvai.util.nav_map/
+worv.util.nav_map/
 ├── config/
 │   └── extension.toml          # Extension manifest and dependencies
 ├── docs/
 │   ├── README.md               # This file
 │   └── VERSION.md              # Version history
-└── worvai/util/nav_map/
+└── worv/util/nav_map/
     ├── __init__.py              # Public API exports
     ├── extension.py             # NavigationMapExtension — Kit entry point
     ├── ui_builder.py            # NavigationMapUIBuilder — UI widget construction

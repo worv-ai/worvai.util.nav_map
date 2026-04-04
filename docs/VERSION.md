@@ -1,17 +1,22 @@
 # Version History
 
-## v0.3.1 — 2026-04-04
+## v0.4.0 — 2026-04-04
 
-Fixed bounding box computation producing max-float values when selected prims have no renderable geometry.
+Renamed project from `worvai.util.nav_map` to `worv.util.nav_map`. Fixed bounding box computation on non-mesh prims.
+
+### Breaking Changes
+
+- **Module rename** — `worvai.util.nav_map` → `worv.util.nav_map`; Python package directory `worvai/` → `worv/`; update all `.kit` files and imports accordingly
 
 ### Bug Fixes
 
-- **Empty bbox guard** — `_calculate_selection_world_bounds()` now checks `aligned_range.IsEmpty()` before combining; non-mesh prims (Xform, Scope, etc.) are skipped instead of injecting `±FLT_MAX` sentinel values into the combined bounding box
+- **Empty bbox guard** — Skip prims whose `ComputeAlignedRange()` is empty before combining into the total bounding box
 
 ### Modified Files
 
-- `config/extension.toml` — Version bump to v0.3.1
-- `ui_builder.py` — Added `IsEmpty()` check on `ComputeAlignedRange()` result in `_calculate_selection_world_bounds()`
+- `config/extension.toml` — Module name and version bump to v0.4.0
+- `docs/README.md` — All references updated from `worvai` to `worv`
+- `ui_builder.py` — Added `IsEmpty()` check in `_calculate_selection_world_bounds()`
 
 ---
 
